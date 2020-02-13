@@ -1,0 +1,869 @@
+  
+---
+title: "HR_Analytics"
+author: "Vinay Singh"
+date: "November 28, 2018"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+#HR Analytics
+
+
+A very interesting branch of Analytics which is at an initial stage of using data to streamline process and application which are used in an organization. Human resources specialists are responsible for recruiting, screening, interviewing and placing workers. They may also handle employee relations, payroll, benefits, and training. Human resources managers plan, direct and coordinate the administrative functions of an organization(Wikipedia). Analytics and Data can help hr gather information about the employee sentiment with the company, can help transform the entire process of recruiting people in an organization along with many other examples.
+
+#Overview
+
+Organization spend a lot of money, time and resources on hiring the right set of people fitting their work space. They also spend a lot money in training program for the employee so that they fit well with the organization and to increase the effectiveness of the employee. Hence it is very important for the Human resources to identify the people who will be leaving the company at the right point of time to identifying potential budget required for future process. It also helps reduce expenditure a firm is making on Human resource department.
+
+Human Resource(hr) Analytics is an area in the field of analytics referring to the use of data and algorithm by the Human resource department to help improve employee performance and get better return on investment. It deals with the idea of generating valuable insight and decision to the Human resource department by working on employee and organization data for increasing efficiency & productivity for an organization.
+
+#Problem
+
+Attrition in a company signifies reduction in staff and employee with the organization through various forms such as retirement, resignation, loss of client or any other. Our problem corresponds to the problem of identifying potential employee behavior of leaving/staying in an organization based on a 33-metrics gathered from Kaggle provided by IBM hr Analytics Employee & Attrition data-set. 
+
+#Data Exploration
+
+  +Columns:  35
+  +Rows: 1470
+  +Target Variable: Attrition
+  +Missing Values: None
+
+```{r message=FALSE, tidy=TRUE}
+
+library(ggplot2)
+library(dplyr)
+library(rlist)
+library(MASS)
+library(caret)
+library(tidyverse)
+library(gains)
+library(leaps)
+library(pROC)
+library(rpart)
+library(rpart.plot)
+library(ROSE)
+``` 
+
+
+```{r factor}
+
+hr <- read.csv("C:/Users/VKS/Desktop/Course Syllabus/Analytics with R/HR Analytics/HR Analytics/HR.csv")
+hr_data<-hr
+hr.df<-hr
+hr_data<-hr
+hr$Education <- as.factor(hr$Education)
+hr$EnvironmentSatisfaction <- as.factor(hr$EnvironmentSatisfaction)
+hr$JobInvolvement <- as.factor(hr$JobInvolvement)
+hr$JobLevel <- as.factor(hr$JobLevel)
+hr$JobSatisfaction <- as.factor(hr$JobSatisfaction)
+hr$PerformanceRating <- as.factor(hr$PerformanceRating)
+hr$RelationshipSatisfaction <- as.factor(hr$RelationshipSatisfaction)
+hr$StockOptionLevel <- as.factor(hr$StockOptionLevel)
+hr$WorkLifeBalance <- as.factor(hr$WorkLifeBalance)
+
+fact_variables <- c('WorkLifeBalance','StockOptionLevel','PerformanceRating',
+                    'JobSatisfaction','RelationshipSatisfaction','JobLevel',
+                    'JobInvolvement','EnvironmentSatisfaction','Education')
+hr_data[,fact_variables] <- lapply(hr_data[,fact_variables] , factor)
+
+names(hr)[1] <- "Age"
+
+
+``` 
+
+
+Description of Metadata:
+
+Education: 1 'Below College', 2 'College', 3 'Bachelor',  4 'Master',  5 'Doctor'
+EnvironmentSatisfaction:  1 'Low',  2 'Medium',  3 'High',  4 'Very High'
+JobInvolvement: 1 'Low', 2 'Medium',  3 'High',  4 'Very High'
+JobSatisfaction: 1 'Low',  2 'Medium',  3 'High',  4 'Very High'
+PerformanceRating: 1 'Low',  2 'Good',  3 'Excellent',  4 'Outstanding'
+RelationshipSatisfaction: 1 'Low',  2 'Medium',  3 'High',  4 'Very High'
+WorkLifeBalance: 1 'Bad',  2 'Good',  3 'Better',  4 'Best'
+
+A glance at top 6 observations in the dataset:
+
+ 
+ 
+ 
+ 
+ 
+
+Changing the datatype of few columns:
+
+A few columns in the dataset that were supposed to be categorical are in numeric datatype, converting them into factors with the code below:
+
+
+#### A look at the Attrition distribution 
+
+```{r}
+a <-ggplot(hr, aes(x= Attrition)) +
+  geom_bar()
+a+ labs(x="Attrition")
+```
+
+#### Plot of Age faceted by Attrition
+
+```{r}
+ggplot(hr, aes(x= Age)) +
+  geom_histogram() + facet_wrap(~ Attrition)
+
+options(scipen=999)          
+E <- hr %>%
+  group_by(Attrition) %>%
+  summarise(median(Age))
+E
+```
+** Inference **
+From both the plot and table it can be inferred that employees aged between 30- 35 tend to leave the company more.
+
+#### Proportion of Attrition by department
+
+```{r}
+ggplot(hr, aes(x=Department, fill = Attrition)) + geom_bar(position = "fill") +
+  ylab("proportion")
+```
+** Inference **
+Employees from sales department tend to leave the company more.
+
+#### Proportion of Attrition by Business Travel
+
+```{r}
+ggplot(hr, aes(x=BusinessTravel, fill = Attrition)) + geom_bar(position = "fill") +
+  ylab("proportion")
+```
+** Inference **
+Employees who travel more frequently tend to leave the company more.
+
+#### Proportion of Attrition by Education Level
+
+```{r}
+ggplot(hr, aes(x=Education, fill = Attrition)) + geom_bar(position = "fill") 
+```
+** Inference **
+Employees who are below college level tend to leave the company more
+
+#### Attrition vs Distance from home
+
+```{r}
+
+ggplot(hr, aes(x=DistanceFromHome, fill = Attrition)) + geom_density(alpha=0.3) 
+options(scipen=999)          
+D <- hr %>%
+  group_by(Attrition) %>%
+  summarise(mean(DistanceFromHome))
+D
+```
+
+** Inference **
+More number of employees stay near their office, as shown in the graph, as the distance increase attrition increase. Also, as shown in the table, the average distance from home is higher (10.6 miles) for employees who leave the office.
+
+#### Proportion of Attrition by Education
+
+```{r}
+ggplot(hr, aes(x=EducationField, fill = Attrition)) + geom_bar(position = "fill") + 
+ylab("proportion") 
+```
+** Inference **
+Employees with hr as their education tend to leave the company more.
+
+#### Daily rate vs Attrition 
+
+```{r}
+ggplot(hr, aes(x= DailyRate, fill= Attrition)) + geom_density(alpha = 0.3) 
+
+options(scipen=999)          
+B <- hr %>%
+  group_by(Attrition) %>%
+  summarise(mean(DailyRate))
+B
+```
+** Inference **
+As shown in the graph, employees with less daily rate leave the company more and employees with high daily rate tend to leave less. Also, the table shows that the employes that leave the company have less average daily rate.
+
+#### Breakdown of dailyrate by department
+
+```{r}
+ggplot(hr, aes(x= DailyRate, fill= Department)) + geom_density(alpha = 0.3)          
+
+options(scipen=999)          
+A <- hr %>%
+  group_by(Department) %>%
+  summarise(mean(DailyRate), min(DailyRate), max(DailyRate))
+A
+```
+** Inference **
+Human Resources department's daily rate is less compared to other departments. Research and Development department has highest average daily rate.
+
+#### Breakdown of dailyrate by Education field
+
+```{r}
+options(scipen=999)          
+C <- hr %>%
+  group_by(EducationField) %>%
+  summarise(mean(DailyRate), min(DailyRate), max(DailyRate))
+C
+```
+** Inference **
+Employees with a technical degree have highest average daily rate and the employee from Marketing has highest daily rate.
+
+## Proportion of Attrition by TRainingTineLastYear
+
+
+```{r}
+
+ggplot(hr_data, aes(x=hr_data$TrainingTimesLastYear, fill = hr_data$Attrition)) + geom_bar(position = "fill") +
+  ylab("proportion")
+```
+
+#### Proportion of Attrition by WorkLifeBalance
+
+```{r}
+
+ggplot(hr_data, aes(x=hr_data$WorkLifeBalance, fill = hr_data$Attrition)) + geom_bar(position = "fill") +
+  ylab("proportion")
+```
+
+## Box Plot of Attriton by YearsAtCompany
+
+```{r}
+
+plot(YearsAtCompany~Attrition,data = hr_data,col=colors()[100:102])
+
+```
+
+## Box Plot of Attriton by CurrentRole
+
+```{r}
+
+plot(YearsInCurrentRole~Attrition,data = hr_data,col=colors()[100:102])
+
+```
+## Box Plot of Attriton by YearsSinceLastPromotion
+
+```{r}
+
+plot(YearsSinceLastPromotion~Attrition,data = hr_data,col=colors()[100:102])
+
+```
+
+##  Count of Attrition by TotalWorkingYears
+
+Majority of Employees have 0-10 years as Total working years. As number of years increases, attrition of No increases.
+
+```{r}
+plot_1 = ggplot(hr_data, aes(TotalWorkingYears,fill = factor(Attrition)))
+plot_2 = plot_1 + geom_histogram(stat="count")
+print(plot_2)
+```
+
+## Plot of Employees by YearsAtCompany
+
+Most of the employees are new and have served the company for less than 10 years.
+
+```{r}
+
+ggplot(hr_data) + 
+  geom_histogram(mapping=(aes(YearsAtCompany)),fill="red",col="white",binwidth = 1) + 
+  labs(x="Years at the company", y="Employees", title="Working Years at Company") + theme(legend.position="none")
+
+```
+
+## Plot of Employees Count by CurrentRole
+
+Years that Majority of employees remain in the current role are between 0-7 years. 
+Most of the employees have been in the same role for long period.
+
+```{r}
+
+ggplot(hr_data) + 
+  geom_histogram(mapping=(aes(YearsInCurrentRole)),fill="red",col="white",binwidth = 1) + 
+  labs(x="Years in Current Role", y="Employees", title="Years in Current Role") + theme(legend.position="none")
+
+```
+
+#Algorithms for Attrition Prediction:
+
+#Logistic Regression
+
+###How & why to choose it:
+
+Logistic regression is highly popular and powerful in terms of classification. Similar with linear regression, it relies on a specific model relating the predictors with the outcome. Due to the fact that we must specify the predictors and include their form in this algorithm, even small datasets can be used for building logistic regression classifiers, which is the case here.
+
+###Brief description of the algorithm:
+
+The idea behind logistic regression is straightforward: instead of using Y directly as the outcome variable, we use a function of it – the logit (the log of odds), which can be modeled as a linear function of predictors. Once the logit has been predicted, it can be mapped back to a probability. 
+
+#Data Preprocessing:
+
+1.We drop the obvious needless columns here: Employee Count, Over 18, Employee Number (all the same), StandardHours (all the same)
+
+```{r}
+hr.df <- hr.df[, -c(9,10,22,27)]
+```
+
+2. treat the below variables as categorical
+```{r}
+hr.df$Education <- factor(hr.df$Education, 
+                          levels = c(1,2,3,4,5),
+          labels = c('Below College','College','Bachelor','Master','Doctor'))
+
+hr.df$EnvironmentSatisfaction <- factor(hr.df$EnvironmentSatisfaction,
+                                        levels = c(1,2,3,4),
+          labels = c('Low','Medium','High','Very High'))
+
+hr.df$JobInvolvement <- factor(hr.df$JobInvolvement,
+                                        levels = c(1,2,3,4),
+                                      labels = c('Low','Medium','High','Very High'))
+
+hr.df$JobLevel <- factor(hr.df$JobLevel,
+                               levels = c(1,2,3,4,5),
+                      labels = c('Very Low','Low','Medium','High','Very High'))
+
+hr.df$JobSatisfaction <- factor(hr.df$JobSatisfaction,
+                               levels = c(1,2,3,4),
+                               labels = c('Low','Medium','High','Very High'))
+
+hr.df$PerformanceRating <- factor(hr.df$PerformanceRating,
+                                  levels = c(1,2,3,4),
+      labels = c('Low','Good','Excellent','Outstanding'))
+
+hr.df$RelationshipSatisfaction <- factor(hr.df$RelationshipSatisfaction,
+                                  levels = c(1,2,3,4),
+                           labels = c('Low','Medium','High','Very High'))
+
+hr.df$WorkLifeBalance <- factor(hr.df$WorkLifeBalance,
+                                         levels = c(1,2,3,4),
+                               labels = c('Bad','Good','Better','Best'))
+
+hr.df$StockOptionLevel <- factor(hr.df$StockOptionLevel,
+                                 levels = c(0,1,2,3),
+                                 labels = c('Low','Medium','High','Very High'))
+```
+
+3. partition data into training and validation dataset: 60% of training, 40% of validation
+
+```{r}
+library(caret)
+training.index <- createDataPartition(hr.df$Attrition, p = 0.60, list = FALSE)
+
+hr.train.df <- hr.df[training.index, ]
+hr.valid.df <- hr.df[-training.index, ]
+
+```
+
+
+4. normalize the data for numeric variables, since they are not using the same metrics (e.g. years vs dollars)
+
+```{r}
+hr.norm <- preProcess(hr.train.df, method = c("center", "scale"))
+
+hr.train.norm <- predict(hr.norm, hr.train.df)
+hr.valid.norm <- predict(hr.norm, hr.valid.df)
+```
+
+Now we use the normalized data to run logistic regression
+```{r}
+lm.fit <- glm(Attrition~., data = hr.train.norm, family = "binomial")
+```
+
+show coefficients and odds:
+```{r}
+lm.summary <- data.frame(summary(lm.fit)$coefficients, odds = exp(coef(lm.fit)))
+options(scipen = 999)
+round(lm.summary, 5)
+```
+
+###Interpret the results:
+
+For illustration, the odds has been present using the EXP() function here. (the odds = e^coefficient) For continuous variables, the odds is the multiplicative factor by which the odds (of belonging to class 1) increase when the value of predictor is increased by 1 unit, holding all other predictors constant. For dummy variable predictors, the odds means the chance on outcome with predictor of being 1 vs.being zero.
+
+As we can see, OvertimeYes, JobRoleSalesExecutive, JobRoleSalesRep, JoblevelVeryHigh and BusinessTravelTravel_Frequently has the largest odds here positively (the 3 variables with coefficient of 14 are not discussed here due to high p value), while other predictors have an small to moderate impact on attrition, either positively or negatively.
+
+Evaluate the results on validation dataset using confusion matrix:
+
+```{r}
+pred <- predict(lm.fit, hr.valid.norm, type = 'response')
+confusionMatrix(as.factor(ifelse(pred > 0.5, "Yes", "No")), 
+                as.factor(hr.valid.norm$Attrition))
+```
+As we can see, the overall accuracy is 87.7% with a Specificity of 46.8%.
+
+Plotting lift/decile chart:
+
+```{r}
+library(gains)
+hr.valid.norm$isAttrition <- 1 * (hr.valid.norm$Attrition == "Yes")
+gain <- gains(hr.valid.norm$isAttrition, pred)
+
+### Plot Lift Chart
+plot(c(0,gain$cume.pct.of.total*sum(hr.valid.norm$isAttrition))~c(0,gain$cume.obs), 
+     xlab = "# cases", ylab = "Cumulative", main = "", type = "l")
+lines(c(0,sum(hr.valid.norm$isAttrition))~c(0, dim(hr.valid.norm)[1]), lty = 5)
+
+### Plot decile-wise chart
+heights <- gain$mean.resp/mean(hr.valid.norm$isAttrition)
+midpoints <- barplot(heights, names.arg = gain$depth,  ylim = c(0,9), col = "gold3",  
+                     xlab = "Percentile", ylab = "Mean Attrition", 
+                     main = "Decile-wise lift chart")
+
+```
+
+#CART Model
+
+#Features: 
+
+  •	Data Driven method that can be used for both classification and prediction
+  •	Creates splits on predictors using logical rules
+  
+#Advantages:
+
+  •	Very easy to interpret
+  •	Creates interesting analysis on the predictors, which is very useful for decision making.
+  •	It can reduce the dimension by Pruning (Cutting tree back).
+  
+  
+The columns below are not giving any information, so these columns can be removed from the dataset. 
+
+  •	EmployeeCount: Values same for all the observations
+  •	EmployeeNumber: Serial number for the observations
+  •	Over18: Values same for all the observations
+  •	StandardHours: Values same for all the observations
+  
+```{r}
+
+#Removing columns that doesn't give useful information
+hr <- hr[-c(9,10,22,27)]
+
+```  
+
+Converting Yes and No in Attrition Column to 1 and 0 inorder to use gain function.
+
+```{r}
+hr$Attrition <- as.numeric(hr$Attrition) -1
+```
+  
+Splitting data into 60:40 Training and Validation Datasets:
+
+```{r}
+#Data partition into training and validation datasets.
+
+set.seed(111)
+training.index <- createDataPartition(hr$Attrition, p = 0.6, list= FALSE)
+hr.train <- hr[training.index, ]
+hr.valid <- hr[-training.index, ]  
+
+```
+
+#Generating Classification Tree:
+
+Running the model with rpart() function (Recursive Partitioning and Regression Trees).
+
+```{r}
+### Generate classification tree
+hrtree <- rpart( Attrition~ ., data = hr.train, method = "class")
+prp(hrtree,type=1, split.font = 1, varlen = -10, cex= 0.7)
+
+```
+
+#Count of leaves in fully grown Tree:
+
+
+```{r}
+hrfulltree <- rpart(Attrition ~ ., data = hr.train, 
+                   method = "class", cp = 0, minsplit = 1)
+
+length(hrfulltree$frame$var[hrfulltree$frame$var == "<leaf>"])  
+
+```
+
+Count of leaves when the tree is fully grown is 100
+
+#CP Table:
+
+CP table is complexity-parameter table of cross-validation errors at respective splits.
+
+```{r}
+
+hrfulltree$cptable  
+
+```
+
+#Pruning Tree:
+
+Pruning of a tree is done using the CP Table, where the tree is constructed with the CP value that has least Cross-Validation error (xerror).
+
+```{r}
+
+hrpruned <- prune(hrfulltree, 
+                   cp = hrfulltree$cptable[which.min(hrfulltree$cptable[,"xerror"]),"CP"])
+length(hrpruned$frame$var[hrpruned$frame$var == "<leaf>"])
+prp(hrpruned, type = 1, extra = 1, split.font = 1, varlen = -10,
+    box.col=ifelse(hrpruned$frame$var == "<leaf>", 'gray', 'white'))  
+
+
+```
+
+
+
+
+```{r}
+
+### Confusion Matrices 
+### for Training set
+
+hrtrainCM <- predict(hrtree, data = hr.train,type = "class")
+confusionMatrix(hrtrainCM, as.factor(hr.train$Attrition))
+
+```
+
+Accuracy in Training Dataset is 88.55%
+
+
+```{r}
+### for Validation set
+
+hrvalidCM <- predict(hrtree,newdata = hr.valid, type = "class")
+confusionMatrix(hrvalidCM, as.factor(hr.valid$Attrition))
+
+
+```
+
+Accuracy in Validation Dataset is 84.52% 
+
+
+#### Lift Chart:
+```{r warning= FALSE, message = FALSE }
+gain <- gains(as.numeric(hr.valid$Attrition),as.numeric(hrvalidCM)-1, groups = 10)
+
+plot(c(0,gain$cume.pct.of.total*sum(hr.valid$Attrition))~c(0,gain$cume.obs), 
+     xlab = "Number of Cases", ylab = "Cumulative", main = "", type = "l")
+lines(c(0,sum(hr.valid$Attrition))~c(0, dim(hr.valid)[1]), col= "red", lty = 5)
+```
+
+
+Area under the curve:
+
+```{r}
+roc_obj <- roc(as.numeric(hr.valid$Attrition), as.numeric(hrvalidCM))
+auc(roc_obj)
+```
+
+
+### Running the CART model using a balanced training data set:
+
+Number of 1's and 0's in training data set before balancing
+
+```{r}
+
+table(hr.train$Attrition)
+
+```
+
+
+#### Balancing the dataset using ROSE function.
+
+Rose function is an oversampling technique that deals with imbalanced dataset by creating synthetic data.
+
+```{r}
+hr.train <- ROSE(Attrition ~ ., data = hr.train, seed = 1)$data
+```
+
+#### Number of 1's and 0's in training data set after balancing
+
+```{r}
+
+table(hr.train$Attrition)
+
+```
+
+#### Running rpart() using new balanced training data set
+
+```{r}
+# Generate classification tree
+hrtree <- rpart( Attrition~ ., data = hr.train, method = "class")
+
+### Fully-Grown Tree
+hrfulltree <- rpart(Attrition ~ ., data = hr.train, 
+                    method = "class", cp = 0, minsplit = 1)
+
+#pruning tree
+
+hrpruned <- prune(hrfulltree, 
+                  cp = hrfulltree$cptable[which.min(hrfulltree$cptable[,"xerror"]),"CP"])
+
+
+### Confusion Matrices 
+
+### for Validation set
+
+hrvalidCM <- predict(hrtree,newdata = hr.valid, type = "class")
+confusionMatrix(hrvalidCM, as.factor(hr.valid$Attrition))
+
+
+```
+
+Validation Accuracy is 71.26%
+
+
+#### Lift Chart and AUC after balancing:
+
+```{r warning= FALSE}
+
+gain <- gains(as.numeric(hr.valid$Attrition),as.numeric(hrvalidCM)-1, groups = 10)
+
+ plot(c(0,gain$cume.pct.of.total*sum(hr.valid$Attrition))~c(0,gain$cume.obs), 
+     xlab = "Number of Cases", ylab = "Cumulative", main = "", type = "l")
+lines(c(0,sum(hr.valid$Attrition))~c(0, dim(hr.valid)[1]), col= "red", lty = 5)
+
+
+
+
+roc_obj <- roc(as.numeric(hr.valid$Attrition), as.numeric(hrvalidCM))
+auc(roc_obj)
+
+```
+Inference: 
+
+Lift chart is used for profiling. When top 20% (or 200) of records are picked, our performs 2 times times better than the Naives benchmark. (70/30 ,Point where black line meets Y axis when X = 200 / Point where red dotted line meets Y axis when X=200
+
+
+#### Inference of CART Model:
+
+Original Dataset model vs Balanced dataset model, which one to use?
+
+It depends on the business requirement, if a model that yields good accuracy is to be selected then Original Dataset Model which had an accuracy of 84.52 is the right choice. If a model that identifies high number of "Class of Interest" members correctly is to be selected, then the balanced dataset model which identified 76% "Class of Interest" members correctly is the right choice. 
+
+
+
+#KNN: k-Nearest Neighbor
+
+It is a non-parametric method of machine learning algorithm used for classification and regression problem. It aims at classifying records based on similar records in the training data. It is based on distance between records and is data driven where no assumption is made about relationship between Y and X's.
+
+#Dataset Preparation
+
+We will be using our initial dataset of attrition provided by IBM to build our model based on K Nearest neighbor algorithm to predict Employee pattern on Attrition using a list of 33 metrics. We will be taking the column which is having numerical data, categorical data is considered only after taking it into numerical form, since it is a KNN algorithm. We have only considered nominal categorical variable into account since converting them into numbers would not distort the representation in the data, whereas converting ordinal variable into numerical would not make sense in KNN.
+
+We will be first reading the dataset into R using 'read.csv' and then defining the required libraries for running the K Nearest neighbor algorithm.
+
+```{r hr Analytics}
+
+#Defining Librarie
+
+library(caret)
+library(FNN)
+library(gmodels)
+
+#Reading preprocessed file for kNN into the system
+
+hr.df<-read.csv("hr_Analytics_knn.csv",stringsAsFactors = FALSE)
+
+names(hr.df)[1]<-"Attrition"
+
+#Initial Exploration of the dataset
+
+str(hr.df)
+
+table(hr.df$Attrition)
+
+```
+
+
+#Training and Validation Dataset
+
+We will be dividing our data into Training and Validation data.
+
+  .	Training Data: We will be using this data-set to define the set of rules or build a KNN    model from the predictor variables to predict the outcome of Employee Attrition
+  
+  .	Validation Data: It is used to test the model accuracy based on data-set which was not      used for building the model
+
+We have split the data into 60% training data-set and 40% validation data-set. Below is code for dividing data-set into training and validation data-set:
+
+```{r Partition}
+
+### Partitioning data
+set.seed(1)
+train.index <- sample(row.names(hr.df), 0.6*dim(hr.df)[1])  
+valid.index <- setdiff(row.names(hr.df), train.index)  
+train.df <- hr.df[train.index, ]
+valid.df <- hr.df[valid.index, ]
+train.df.labels<-hr.df[train.index,1]
+valid.df.labels<-hr.df[valid.index,1]
+
+```
+
+#Normalization
+
+Before moving on to running a KNN algorithm, the data must be normalized i.e. it should follow a normal distribution. We will be using processed function from CARET to normalize the training and validation data-set.
+
+```{r Normalization}
+
+### Run K-NN
+train.norm.df <- train.df
+valid.norm.df <- valid.df
+
+### Normalize data using preProcess() from CARET
+set.seed(111)
+norm.values <- preProcess(train.df[, 2:28], method=c("center", "scale"))
+train.norm.df[, 2:28] <- predict(norm.values, train.df[, 2:28])
+valid.norm.df[, 2:28] <- predict(norm.values, valid.df[, 2:28])
+valid.norm.df$Attrition<-as.factor(valid.norm.df$Attrition)
+
+```
+
+#Build model
+
+We will be first running the model with a random K number.
+
+```{r Normal kNN}
+knn.pred <- knn(train.norm.df[, 2:28], valid.norm.df[, 2:28], 
+                cl = train.norm.df[, 1], k = 7)
+```
+
+#Choosing Optimal K
+
+We will be choosing the best K value using the below code based on the maximum accuracy provided by the confusion matrix.
+
+```{r Choosing optimal K}
+
+### Chooose optimal K
+
+### Initialize a data frame with two columns: k and accuracy
+accuracy.df <- data.frame(k = seq(1, 14, 1), accuracy = rep(0, 14))
+
+### compute knn for different k on validation
+for(i in 1:14) {
+  knn.pred <- knn(train.norm.df[, 2:28], valid.norm.df[, 2:28], 
+                  cl = train.norm.df[, 1], k = i)
+  accuracy.df[i, 2] <- confusionMatrix(knn.pred, valid.norm.df[, 1])$overall[1] 
+}
+accuracy.df
+
+```
+
+#Model Accuracy
+
+We achieved an overall accuracy of ~84%. Below is the cross table for that:
+
+```{r Running with Optimum K}
+####Running with optimum K
+
+knn.pred <- knn(train.norm.df[, 2:28], valid.norm.df[, 2:28], 
+                cl = train.norm.df[, 1], k = 5)
+
+CrossTable(x=valid.df.labels, y=knn.pred, prop.chisq=FALSE)
+```
+
+#Linear Discriminant Analysis
+
+## Removing unnecessary columns
+
+```{r}
+hr_data$StandardHours<- NULL
+hr_data$EmployeeCount<- NULL
+hr_data$Over18<- NULL
+hr_data$EmployeeNumber<- NULL
+```
+
+
+## Data Partition
+```{r}
+row<- seq(1,nrow(hr_data),1)
+set.seed(10)
+train_rows<- sample(row, 0.7*nrow(hr_data))
+train <- hr_data[train_rows, ]
+valid <- hr_data[-train_rows, ]
+```
+
+# Normalize the data
+# Estimate preprocessing parameters
+
+```{r}
+library(caret)
+norm.values  <- preProcess(train, method = c("center", "scale"))
+```
+
+# Transform the data using the estimated parameters
+
+```{r}
+train.norm <- predict(norm.values, train)
+valid.norm <- predict(norm.values, valid)
+```
+
+# run lda()
+```{r}
+library(MASS)
+lda1 <- lda(Attrition~., data = train.norm)
+lda1$counts
+
+```
+# output
+LDA uses means and variances of each class in order to create a linear boundary between them. This boundary is delimited by the coefficients.
+Prior probabilities of groups: These probabilities are the ones that already exist in your training data. You can see in the output that the probabilities of groups for No is 84.01% and that for Yes is 15.98%.
+Group means:  This gives is the average of each predictor within each class.
+
+The calculated coefficient for ETAin the first model is -0.22623738. This means that the boundary between the two different classes will be specified by the following formula:
+
+y = -0.22623738 * AGE
+
+
+```{r}
+lda1
+prop.ld1 = lda1$svd^2/sum(lda1$svd^2)
+prop.ld1
+```
+
+# predict - using training data and plot
+You can see that there is lot of overlapping between Yes and No.
+```{r}
+pred1.train <- predict(lda1, train.norm)
+ldahist(data = pred1.train$x[,1], g = train.norm$Attrition)
+```
+# predict - using validation data
+
+```{r}
+pred2.valid <- predict(lda1, valid.norm)
+names(pred2.valid)
+```
+
+# Model accuracy
+```{r}
+table(pred2.valid$class, valid.norm$Attrition)  
+mean(pred2.valid$class == valid.norm$Attrition)  
+sum(pred2.valid$posterior[, 1] >=.5)
+
+sum(pred2.valid$posterior[, 1] >=.75)
+```
+
+
+
+### lift chart
+```{r}
+library(gains)
+gain <- gains(as.numeric(valid.norm$Attrition), pred2.valid$x[,1], groups = 10)
+```
+
+
+### Gains 
+```{r}
+valid.norm$Attrition<- as.numeric(valid.norm$Attrition)
+plot(c(0,gain$cume.pct.of.total*sum(valid.norm$Attrition))~c(0,gain$cume.obs), 
+     xlab="Cases", ylab="Cumulative Lift", main="LIFT CHART", 
+     col = "blue1", type="l")
+lines(c(0,sum(valid.norm$Attrition))~c(0, dim(valid)[1]), lty = 9)
+
+```
+
+
+### Plot decile-wise chart
+You can see that all the deciles are in the descending order which is a good sign of decile chart.The records are sorted by their predicted scores. The top decile contains the 10% of the employees most likely with Yes and the bottom decile contains the 10% of the employees.
+Also, it tells us that out LDA model preforms better for top 20% deciles compared to the naive model.
+```{r}
+heights <- gain$mean.resp/mean(valid.norm$Attrition)
+barplot(heights, names.arg = gain$depth,  ylim = c(0,2),  
+                 xlab = "Percentile", ylab = "Leave Response", 
+                 main = "Decile chart")
